@@ -1,5 +1,8 @@
+#include "types.h"
+#include "gdt.h"
+
 void printf(char* str){
-    unsigned int* videoMemory = (unsigned int*)0xb8000;
+    uint16_t* videoMemory = (uint16_t*)0xb8000;
 
     for(int i = 0; str[i] != '\0'; i++) {
         videoMemory[i] = (videoMemory[i] & 0xFF00) | str[i];
@@ -16,8 +19,10 @@ extern "C" void callConstructors() {
     }
 }
 
-extern "C" void kernelMain(void* multiboot_structure, unsigned int magic) {
+extern "C" void kernelMain(void* multiboot_structure, uint32_t magic) {
     printf("Kavee\n");
+
+    GlobalDescriptorTable gdt;
 
     while (1);
 }
