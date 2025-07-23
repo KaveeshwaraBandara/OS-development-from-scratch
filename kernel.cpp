@@ -1,75 +1,68 @@
+
 #include "types.h"
 #include "gdt.h"
 #include "interrupts.h"
+#include "keyboard.h"
 
-void printf(char* str){
-    static uint16_t* videoMemory = (uint16_t*)0xb8000;
 
-    static int cursorX = 0;
-    static int cursorY = 0;
+void printf(char* str)
+{
+    static uint16_t* VideoMemory = (uint16_t*)0xb8000;
 
-    for(int i = 0; str[i] != '\0'; i++) {
-        switch(str[i]) {
+    static uint8_t x=0,y=0;
+
+    for(int i = 0; str[i] != '\0'; ++i)
+    {
+        switch(str[i])
+        {
             case '\n':
-                cursorX = 0;
-                cursorY++;
-                if(cursorY >= 25) {
-                    cursorY = 0;
-                    for(int j = 0; j < 80*25; j++) {
-                        videoMemory[j] = (videoMemory[j] & 0xFF00) | ' ';
-                    }  
-                }
-                continue;
-            case '\r':
-                cursorX = 0;
-                continue;
+                x = 0;
+                y++;
+                break;
+            default:
+                VideoMemory[80*y+x] = (VideoMemory[80*y+x] & 0xFF00) | str[i];
+                x++;
+                break;
         }
-        if(cursorX >= 80) {
-            cursorX = 0;
-            cursorY++;
-            if(cursorY >= 25) {
-                cursorY = 0;
-                for(int j = 0; j < 80*25; j++) {
-                    videoMemory[j] = (videoMemory[j] & 0xFF00) | ' ';
-                }
-            }
+
+        if(x >= 80)
+        {
+            x = 0;
+            y++;
         }
-        videoMemory[80*cursorY+cursorX] = (videoMemory[80*cursorY+cursorX] & 0xFF00) | str[i];
-    
-        cursorX++;
-        if(cursorX >= 80) {
-            cursorX = 0;
-            cursorY++;
-            if(cursorY >= 25) {
-                cursorY = 0;
-                for(int j = 0; j < 80*25; j++) {
-                    videoMemory[j] = (videoMemory[j] & 0xFF00) | ' ';
-                }  
-            }
+
+        if(y >= 25)
+        {
+            for(y = 0; y < 25; y++)
+                for(x = 0; x < 80; x++)
+                    VideoMemory[80*y+x] = (VideoMemory[80*y+x] & 0xFF00) | ' ';
+            x = 0;
+            y = 0;
         }
-    }     
+    }
 }
+
 
 
 typedef void (*constructor)();
 extern "C" constructor start_ctors;
 extern "C" constructor end_ctors;
-extern "C" void callConstructors() {
-    for (constructor* ctor = &start_ctors; ctor < &end_ctors; ++ctor) {
-        (*ctor)();
-    }
+extern "C" void callConstructors()
+{
+    for(constructor* i = &start_ctors; i != &end_ctors; i++)
+        (*i)();
 }
 
-extern "C" void kernelMain(void* multiboot_structure, uint32_t magic) {
-    printf("Kavee\n");
-    printf("Nishu\n");
+
+
+extern "C" void kernelMain(const void* multiboot_structure, uint32_t /*multiboot_magic*/)
+{
+    printf("KAVEE");
 
     GlobalDescriptorTable gdt;
-    InterruptManager interruptManager(&gdt);
+    InterruptManager interrupts(0x20, &gdt);
+    KeyboardDriver keyboard(&interrupts);
+    interrupts.Activate();
 
-    interruptManager.Activate();
-
-    while (1) {
-        asm volatile ("hlt");
-    }
+    while(1);
 }
